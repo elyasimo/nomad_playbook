@@ -1,0 +1,12 @@
+---
+- name: Wait for Nomad API to be available
+  uri:
+    url: "http://{{ ansible_host }}:4646/v1/agent/self"
+    method: GET
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 60
+  delay: 5
+  ignore_errors: yes
+

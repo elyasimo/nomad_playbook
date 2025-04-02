@@ -1,0 +1,30 @@
+---
+- name: Install and configure Nomad
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: Install and configure Consul on Nomad servers
+  hosts: nomad_servers
+  become: true
+  roles:
+    - consul
+
+- name: Configure Nomad servers
+  hosts: nomad_servers
+  become: true
+  roles:
+    - nomad_server
+
+- name: Configure Nomad clients
+  hosts: nomad_clients
+  become: true
+  roles:
+    - nomad_client
+
+- name: Configure Nginx load balancer
+  hosts: nginx
+  become: true
+  roles:
+    - nginx

@@ -1,0 +1,31 @@
+---
+- name: Check Consul cluster status
+  hosts: nomad_servers[0]
+  become: true
+  tasks:
+    - name: Check Consul members
+      command: consul members
+      register: consul_members
+      ignore_errors: true
+
+    - name: Display Consul members
+      debug:
+        var: consul_members.stdout_lines
+
+    - name: Check Consul service status
+      command: systemctl status consul
+      register: consul_status
+      ignore_errors: true
+
+    - name: Display Consul service status
+      debug:
+        var: consul_status.stdout_lines
+
+    - name: Check Consul logs
+      command: journalctl -u consul --no-pager -n 50
+      register: consul_logs
+      ignore_errors: true
+
+    - name: Display Consul logs
+      debug:
+        var: consul_logs.stdout_lines

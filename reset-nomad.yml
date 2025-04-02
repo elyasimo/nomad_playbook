@@ -1,0 +1,30 @@
+---
+- name: Reset Nomad on all servers
+  hosts: all
+  become: true
+  tasks:
+    - name: Stop Nomad service
+      systemd:
+        name: nomad
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove Nomad data directory
+      file:
+        path: /var/lib/nomad
+        state: absent
+
+    - name: Recreate Nomad data directory
+      file:
+        path: /var/lib/nomad
+        state: directory
+        owner: nomad
+        group: nomad
+        mode: '0755'
+
+    - name: Start Nomad service
+      systemd:
+        name: nomad
+        state: started
+        enabled: yes
+

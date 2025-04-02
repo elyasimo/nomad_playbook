@@ -1,0 +1,109 @@
+---
+- name: Install Nginx
+  dnf:
+    name: nginx
+    state: present
+
+- name: Configure Nginx for Nomad
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure Nomad UI virtual host
+  template:
+    src: nomad-ui.conf.j2
+    dest: /etc/nginx/conf.d/nomad-ui.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure Consul UI virtual host
+  template:
+    src: consul-ui.conf.j2
+    dest: /etc/nginx/conf.d/consul-ui.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create stream directory for Nginx
+  file:
+    path: /etc/nginx/conf.d/stream
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Configure Elastic Agent stream configuration
+  template:
+    src: elastic-agent.conf.j2
+    dest: /etc/nginx/conf.d/stream/elastic-agent.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Open Nginx HTTP ports in firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - 80/tcp
+    - 443/tcp
+  ignore_errors: yes
+
+- name: Open Elastic Agent stream ports in firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - 6010/tcp
+    - 7010/tcp
+    - 7011/tcp
+    - 7012/tcp
+    - 8010/tcp
+    - 8011/tcp
+    - 8012/tcp
+    - 9010/tcp
+  ignore_errors: yes
+
+- name: Ensure SELinux allows Nginx to connect to network
+  shell: |
+    setsebool -P httpd_can_network_connect 1
+  ignore_errors: yes
+
+- name: Stop Nginx service if running
+  systemd:
+    name: nginx
+    state: stopped
+  ignore_errors: yes
+
+- name: Start and enable Nginx service
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Check Nginx service status
+  command: systemctl status nginx
+  register: nginx_status
+  ignore_errors: yes
+
+- name: Display Nginx service status
+  debug:
+    var: nginx_status.stdout_lines
+
+- name: Check Nginx configuration
+  command: nginx -t
+  register: nginx_config_test
+  ignore_errors: yes
+
+- name: Display Nginx configuration test results
+  debug:
+    var: nginx_config_test.stdout_lines

@@ -1,0 +1,60 @@
+---
+- name: Upgrade Nomad to a new version
+  hosts: all
+  become: true
+  vars:
+    new_nomad_version: "1.9.7"  # Default, can be overridden
+  tasks:
+    - name: Stop Nomad service
+      systemd:
+        name: nomad
+        state: stopped
+      ignore_errors: yes
+
+    - name: Download new Nomad version
+      get_url:
+        url: "https://releases.hashicorp.com/nomad/{{ new_nomad_version }}/nomad_{{ new_nomad_version }}_linux_amd64.zip"
+        dest: /tmp/nomad-new.zip
+        mode: '0644'
+      ignore_errors: true
+
+    - name: Extract new Nomad version
+      unarchive:
+        src: /tmp/nomad-new.zip
+        dest: /opt/nomad
+        remote_src: yes
+        owner: nomad
+        group: nomad
+        mode: '0755'
+      ignore_errors: true
+
+    - name: Create symlink to new Nomad binary
+      file:
+        src: /opt/nomad/nomad
+        dest: /usr/local/bin/nomad
+        state: link
+        force: yes
+
+    - name: Start Nomad service
+      systemd:
+        name: nomad
+        state: started
+        enabled: yes
+
+    - name: Wait for Nomad to start
+      wait_for:
+        host: "{{ ansible_host }}"
+        port: 4646
+        delay: 10
+        timeout: 60
+      ignore_errors: true
+
+    - name: Check Nomad version
+      command: nomad version
+      register: nomad_version_output
+      ignore_errors: yes
+
+    - name: Display Nomad version
+      debug:
+        var: nomad_version_output.stdout_lines
+

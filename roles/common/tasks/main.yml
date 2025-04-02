@@ -1,0 +1,177 @@
+---
+- name: Check if packages are already installed
+  shell: "rpm -q curl unzip jq net-tools firewalld policycoreutils-python-utils python3-firewall chrony || echo 'not-installed'"
+  register: packages_check
+  changed_when: false
+  ignore_errors: true
+
+- name: Install required packages
+  dnf:
+    name:
+      - curl
+      - unzip
+      - jq
+      - net-tools
+      - firewalld
+      - policycoreutils-python-utils
+      - python3-firewall
+      - chrony
+    state: present
+    disable_gpg_check: yes
+  when: "'not-installed' in packages_check.stdout"
+  ignore_errors: true
+
+- name: Start and enable chronyd
+  systemd:
+    name: chronyd
+    state: started
+    enabled: yes
+  ignore_errors: true
+
+- name: Start and enable firewalld
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+  ignore_errors: true
+
+- name: Set SELinux to permissive mode
+  selinux:
+    policy: targeted
+    state: permissive
+  ignore_errors: true
+
+- name: Disable swap
+  command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+  ignore_errors: true
+
+- name: Remove swap from fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s+.*)$'
+    line: '# \1'
+    backrefs: yes
+  when: ansible_swaptotal_mb > 0
+  ignore_errors: true
+
+- name: Set system limits for Nomad
+  pam_limits:
+    domain: '*'
+    limit_type: "{{ item.limit_type }}"
+    limit_item: "{{ item.limit_item }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { limit_type: 'soft', limit_item: 'nofile', value: '65536' }
+    - { limit_type: 'hard', limit_item: 'nofile', value: '65536' }
+    - { limit_type: 'soft', limit_item: 'nproc', value: '65536' }
+    - { limit_type: 'hard', limit_item: 'nproc', value: '65536' }
+  ignore_errors: true
+
+- name: Set sysctl parameters
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  with_items:
+    - { name: 'vm.max_map_count', value: '262144' }
+    - { name: 'vm.swappiness', value: '0' }
+    - { name: 'net.ipv4.ip_local_port_range', value: '1024 65535' }
+    - { name: 'net.core.somaxconn', value: '65535' }
+    - { name: 'net.ipv4.tcp_max_syn_backlog', value: '65535' }
+  ignore_errors: true
+
+- name: Create Nomad user
+  user:
+    name: nomad
+    system: yes
+    shell: /sbin/nologin
+    home: /var/lib/nomad
+    create_home: no
+
+- name: Create Nomad directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: nomad
+    group: nomad
+    mode: '0755'
+  with_items:
+    - /etc/nomad.d
+    - /etc/nomad.d/config
+    - /etc/nomad.d/tls
+    - /opt/nomad
+    - /var/lib/nomad
+
+- name: Check if Nomad is already downloaded
+  stat:
+    path: /tmp/nomad.zip
+  register: nomad_zip
+
+- name: Download Nomad
+  get_url:
+    url: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_linux_amd64.zip"
+    dest: /tmp/nomad.zip
+    mode: '0644'
+  when: not nomad_zip.stat.exists
+  ignore_errors: true
+
+- name: Extract Nomad
+  unarchive:
+    src: /tmp/nomad.zip
+    dest: /opt/nomad
+    remote_src: yes
+    owner: nomad
+    group: nomad
+    mode: '0755'
+  ignore_errors: true
+
+- name: Create symlink to Nomad binary
+  file:
+    src: /opt/nomad/nomad
+    dest: /usr/local/bin/nomad
+    state: link
+
+- name: Create Nomad systemd service
+  template:
+    src: nomad.service.j2
+    dest: /etc/systemd/system/nomad.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure SELinux allows Nomad to bind to its ports
+  shell: |
+    semanage port -a -t http_port_t -p tcp 4646 || semanage port -m -t http_port_t -p tcp 4646
+    semanage port -a -t http_port_t -p tcp 4647 || semanage port -m -t http_port_t -p tcp 4647
+    semanage port -a -t http_port_t -p tcp 4648 || semanage port -m -t http_port_t -p tcp 4648
+    semanage port -a -t http_port_t -p udp 4648 || semanage port -m -t http_port_t -p udp 4648
+  ignore_errors: yes
+
+- name: Open Nomad ports in firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - 4646/tcp
+    - 4647/tcp
+    - 4648/tcp
+    - 4648/udp
+  ignore_errors: true
+
+- name: Allow all traffic between Nomad nodes
+  firewalld:
+    rich_rule: "rule family=ipv4 source address={{ hostvars[item]['ansible_host'] }}/32 accept"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items: "{{ groups['all'] }}"
+  ignore_errors: true
+
+- name: Reload firewalld
+  command: firewall-cmd --reload
+  ignore_errors: true
+

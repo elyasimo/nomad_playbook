@@ -1,0 +1,129 @@
+---
+- name: Create Consul user
+  user:
+    name: consul
+    system: yes
+    shell: /sbin/nologin
+    home: /var/lib/consul
+    create_home: no
+
+- name: Create Consul directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: consul
+    group: consul
+    mode: '0755'
+  with_items:
+    - /etc/consul.d
+    - /etc/consul.d/config
+    - /etc/consul.d/tls
+    - /opt/consul
+    - /var/lib/consul
+
+- name: Check if Consul is already downloaded
+  stat:
+    path: /tmp/consul.zip
+  register: consul_zip
+
+- name: Download Consul
+  get_url:
+    url: "https://releases.hashicorp.com/consul/{{ consul_version }}/consul_{{ consul_version }}_linux_amd64.zip"
+    dest: /tmp/consul.zip
+    mode: '0644'
+  when: not consul_zip.stat.exists
+  ignore_errors: true
+
+- name: Extract Consul
+  unarchive:
+    src: /tmp/consul.zip
+    dest: /opt/consul
+    remote_src: yes
+    owner: consul
+    group: consul
+    mode: '0755'
+  ignore_errors: true
+
+- name: Create symlink to Consul binary
+  file:
+    src: /opt/consul/consul
+    dest: /usr/local/bin/consul
+    state: link
+
+- name: Configure Consul server
+  template:
+    src: consul-server.hcl.j2
+    dest: /etc/consul.d/config/consul.hcl
+    owner: consul
+    group: consul
+    mode: '0640'
+
+- name: Create Consul systemd service
+  template:
+    src: consul.service.j2
+    dest: /etc/systemd/system/consul.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure SELinux allows Consul to bind to its ports
+  shell: |
+    semanage port -a -t http_port_t -p tcp 8300 || semanage port -m -t http_port_t -p tcp 8300
+    semanage port -a -t http_port_t -p tcp 8301 || semanage port -m -t http_port_t -p tcp 8301
+    semanage port -a -t http_port_t -p udp 8301 || semanage port -m -t http_port_t -p udp 8301
+    semanage port -a -t http_port_t -p tcp 8302 || semanage port -m -t http_port_t -p tcp 8302
+    semanage port -a -t http_port_t -p udp 8302 || semanage port -m -t http_port_t -p udp 8302
+    semanage port -a -t http_port_t -p tcp 8500 || semanage port -m -t http_port_t -p tcp 8500
+    semanage port -a -t http_port_t -p tcp 8600 || semanage port -m -t http_port_t -p tcp 8600
+    semanage port -a -t http_port_t -p udp 8600 || semanage port -m -t http_port_t -p udp 8600
+  ignore_errors: yes
+
+- name: Open Consul ports in firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - 8300/tcp
+    - 8301/tcp
+    - 8301/udp
+    - 8302/tcp
+    - 8302/udp
+    - 8500/tcp
+    - 8600/tcp
+    - 8600/udp
+  ignore_errors: true
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Stop Consul service if running
+  systemd:
+    name: consul
+    state: stopped
+  ignore_errors: yes
+
+- name: Start Consul service
+  systemd:
+    name: consul
+    state: started
+    enabled: yes
+
+- name: Wait for Consul to start
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: 8500
+    delay: 10
+    timeout: 60
+  ignore_errors: true
+
+- name: Check Consul service status
+  command: systemctl status consul
+  register: consul_status
+  ignore_errors: yes
+
+- name: Display Consul service status
+  debug:
+    var: consul_status.stdout_lines

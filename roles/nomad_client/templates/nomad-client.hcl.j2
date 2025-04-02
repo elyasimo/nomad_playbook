@@ -1,0 +1,62 @@
+datacenter = "{{ nomad_datacenter }}"
+data_dir = "/var/lib/nomad"
+bind_addr = "{{ nomad_bind_addr }}"
+name = "{{ node_names[ansible_host] }}"
+
+# Explicitly configure addresses
+addresses {
+  http = "{{ nomad_advertise_addr }}"
+  rpc  = "{{ nomad_advertise_addr }}"
+}
+
+# Explicitly configure ports
+ports {
+  http = 4646
+  rpc  = 4647
+}
+
+client {
+  enabled = true
+  server_join {
+    retry_join = {{ nomad_retry_join | to_json }}
+    retry_max = 10
+    retry_interval = "15s"
+  }
+  options {
+    "driver.raw_exec.enable" = "1"
+    "docker.privileged.enabled" = "true"
+    "docker.volumes.enabled" = "true"
+  }
+  
+  # Host volumes configuration
+{% for volume in host_volumes %}
+  host_volume "{{ volume.name }}" {
+    path      = "{{ volume.path }}"
+    read_only = false
+  }
+{% endfor %}
+}
+
+plugin "docker" {
+  config {
+    allow_privileged = true
+    volumes {
+      enabled = true
+    }
+  }
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+
+telemetry {
+  collection_interval = "1s"
+  disable_hostname = true
+  prometheus_metrics = true
+  publish_allocation_metrics = true
+  publish_node_metrics = true
+}
+

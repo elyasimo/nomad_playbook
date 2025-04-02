@@ -1,0 +1,56 @@
+datacenter = "{{ nomad_datacenter }}"
+data_dir = "/var/lib/nomad"
+bind_addr = "{{ nomad_bind_addr }}"
+name = "{{ node_names[ansible_host] }}"
+
+# Explicitly configure addresses
+addresses {
+  http = "{{ nomad_advertise_addr }}"
+  rpc  = "{{ nomad_advertise_addr }}"
+  serf = "{{ nomad_advertise_addr }}"
+}
+
+# Explicitly configure ports
+ports {
+  http = 4646
+  rpc  = 4647
+  serf = 4648
+}
+
+server {
+  enabled = true
+  bootstrap_expect = {{ nomad_bootstrap_expect }}
+  encrypt = "{{ nomad_encrypt_key }}"
+  server_join {
+    retry_join = {{ nomad_retry_join | to_json }}
+    retry_max = 10
+    retry_interval = "15s"
+  }
+}
+
+# Enable Consul integration
+consul {
+  address = "127.0.0.1:8500"
+  server_service_name = "nomad-server"
+  client_service_name = "nomad-client"
+  auto_advertise = true
+  server_auto_join = true
+  client_auto_join = true
+}
+
+# Disable ACLs for now
+acl {
+  enabled = false
+}
+
+telemetry {
+  collection_interval = "1s"
+  disable_hostname = true
+  prometheus_metrics = true
+  publish_allocation_metrics = true
+  publish_node_metrics = true
+}
+
+ui {
+  enabled = true
+}

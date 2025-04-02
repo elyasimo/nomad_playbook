@@ -1,0 +1,45 @@
+---
+- name: Backup Nomad data and configuration
+  hosts: all
+  become: true
+  vars:
+    backup_dir: "/tmp/nomad-backup-{{ ansible_date_time.date }}"
+  tasks:
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Backup Nomad configuration
+      archive:
+        path: /etc/nomad.d
+        dest: "{{ backup_dir }}/nomad-config.tar.gz"
+        format: gz
+      ignore_errors: yes
+
+    - name: Backup Nomad data directory
+      archive:
+        path: /var/lib/nomad
+        dest: "{{ backup_dir }}/nomad-data.tar.gz"
+        format: gz
+      ignore_errors: yes
+
+    - name: Backup host volumes
+      archive:
+        path: /opt/nomad/volumes
+        dest: "{{ backup_dir }}/nomad-volumes.tar.gz"
+        format: gz
+      ignore_errors: yes
+
+    - name: Fetch backups to local machine
+      fetch:
+        src: "{{ backup_dir }}/{{ item }}"
+        dest: "./backups/{{ inventory_hostname }}/"
+        flat: yes
+      with_items:
+        - nomad-config.tar.gz
+        - nomad-data.tar.gz
+        - nomad-volumes.tar.gz
+      ignore_errors: yes
+

@@ -1,0 +1,52 @@
+---
+# Common variables
+nomad_version: "1.9.7"
+consul_version: "1.16.2"
+datacenter: "dum-seclab"
+domain: "dum.seclab.ch"
+
+# Security
+enable_acls: false
+encrypt_gossip: true
+enable_tls: false
+
+# Network
+nomad_bind_addr: "0.0.0.0"
+nomad_advertise_addr: "{{ ansible_host }}"
+
+# Nomad configuration
+nomad_datacenter: "{{ datacenter }}"
+nomad_region: "global"
+nomad_encrypt_key: "cg8StVXbQJ0gPvMd9o7yrg=="  # Change this in production!
+nomad_bootstrap_expect: 3
+nomad_retry_join:
+  - "10.25.5.0"
+  - "10.25.5.1"
+  - "10.25.5.2"
+
+# Consul configuration
+consul_datacenter: "{{ datacenter }}"
+consul_client_addr: "0.0.0.0"
+consul_bootstrap_expect: 3
+consul_encrypt_key: "uDBV4e+LbFW3019YKPxIrg=="  # Change this in production!
+consul_retry_join:
+  - "10.25.5.0"
+  - "10.25.5.1"
+  - "10.25.5.2"
+
+# Node names for DNS compatibility
+node_names:
+  "10.25.5.0": "nomadsrv-001"
+  "10.25.5.1": "nomadsrv-002"
+  "10.25.5.2": "nomadsrv-003"
+  "10.25.5.3": "nomadclt-001"
+  "10.25.5.4": "nomadclt-002"
+  "10.25.5.5": "nomadclt-003"
+  "10.25.5.6": "nginx-001"
+
+# Host volumes configuration
+host_volumes:
+  - name: "registry_data"
+    path: "/opt/nomad/volumes/registry_data"
+  - name: "cma_data"
+    path: "/opt/nomad/volumes/cma_data"

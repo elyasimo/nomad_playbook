@@ -1,0 +1,195 @@
+stream {
+    # Enable stream-specific logging
+    log_format stream_main '$remote_addr [$time_local] '
+                          '$protocol $status $bytes_sent $bytes_received '
+                          '$session_time "$upstream_addr" '
+                          '"$upstream_bytes_sent" "$upstream_bytes_received" "$upstream_connect_time"';
+
+    access_log /var/log/nginx/stream_access.log stream_main;
+    error_log /var/log/nginx/stream_error.log info;
+
+    # Global stream settings
+    proxy_timeout 3h;
+    proxy_connect_timeout 5s;
+    proxy_socket_keepalive on;
+
+    # TCP connection limits to prevent DoS
+    limit_conn_zone $binary_remote_addr zone=stream_conn:10m;
+
+    # Upstream servers with health checks
+
+    # FortiGate Firewall Logs (Port 7010)
+    upstream fortinet_fortigate {
+        # Enable least connections balancing for better distribution
+        least_conn;
+
+        server 10.25.5.3:7010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:7010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:7010 max_fails=3 fail_timeout=30s;
+    }
+
+    # F5 BIG-IP Logs (Port 9010)
+    upstream f5_bigip {
+        least_conn;
+
+        server 10.25.5.3:9010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:9010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:9010 max_fails=3 fail_timeout=30s;
+    }
+
+    # CheckPoint Logs (Port 6010)
+    upstream checkpoint {
+        least_conn;
+
+        server 10.25.5.3:6010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:6010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:6010 max_fails=3 fail_timeout=30s;
+    }
+
+    # ProxySG Main Logs (Port 8011)
+    upstream proxysg_main {
+        least_conn;
+
+        server 10.25.5.3:8011 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:8011 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:8011 max_fails=3 fail_timeout=30s;
+    }
+
+    # FortiProxy Logs (Port 7011)
+    upstream fortinet_fortiproxy {
+        least_conn;
+
+        server 10.25.5.3:7011 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:7011 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:7011 max_fails=3 fail_timeout=30s;
+    }
+
+    # ProxySG SSL Logs (Port 8010)
+    upstream proxysg_ssl {
+        least_conn;
+
+        server 10.25.5.3:8010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:8010 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:8010 max_fails=3 fail_timeout=30s;
+    }
+
+    # ProxySG System Logs (Port 8012)
+    upstream proxysg_system {
+        least_conn;
+
+        server 10.25.5.3:8012 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:8012 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:8012 max_fails=3 fail_timeout=30s;
+    }
+
+    # FortiManager System Logs (Port 7012)
+    upstream fortinet_fortimanager {
+        least_conn;
+
+        server 10.25.5.3:7012 max_fails=3 fail_timeout=30s;
+        server 10.25.5.4:7012 max_fails=3 fail_timeout=30s;
+        server 10.25.5.5:7012 max_fails=3 fail_timeout=30s;
+    }
+
+    # Server configurations for each port with improved settings
+
+    # FortiGate Firewall Logs
+    server {
+        listen 7010;
+        proxy_pass fortinet_fortigate;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        # Limit connections per client IP
+        limit_conn stream_conn 10;
+
+        # Enable access logs for this server
+        access_log /var/log/nginx/fortigate_access.log stream_main;
+    }
+
+    # F5 BIG-IP Logs
+    server {
+        listen 9010;
+        proxy_pass f5_bigip;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        limit_conn stream_conn 10;
+        access_log /var/log/nginx/bigip_access.log stream_main;
+    }
+
+    # CheckPoint Logs
+    server {
+        listen 6010;
+        proxy_pass checkpoint;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        limit_conn stream_conn 10;
+        access_log /var/log/nginx/checkpoint_access.log stream_main;
+    }
+
+    # ProxySG Main Logs
+    server {
+        listen 8011;
+        proxy_pass proxysg_main;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        limit_conn stream_conn 10;
+        access_log /var/log/nginx/proxysg_main_access.log stream_main;
+    }
+
+    # FortiProxy Logs
+    server {
+        listen 7011;
+        proxy_pass fortinet_fortiproxy;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        limit_conn stream_conn 10;
+        access_log /var/log/nginx/fortiproxy_access.log stream_main;
+    }
+
+    # ProxySG SSL Logs
+    server {
+        listen 8010;
+        proxy_pass proxysg_ssl;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        limit_conn stream_conn 10;
+        access_log /var/log/nginx/proxysg_ssl_access.log stream_main;
+    }
+
+    # ProxySG System Logs
+    server {
+        listen 8012;
+        proxy_pass proxysg_system;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        limit_conn stream_conn 10;
+        access_log /var/log/nginx/proxysg_system_access.log stream_main;
+    }
+
+    # Fortimanager System Logs
+    server {
+        listen 7012;
+        proxy_pass fortinet_fortimanager;
+        proxy_connect_timeout 5s;
+        proxy_timeout 3h;
+        proxy_socket_keepalive on;
+
+        limit_conn stream_conn 10;
+        access_log /var/log/nginx/fortimanager_access.log stream_main;
+    }
+}
+

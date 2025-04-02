@@ -1,0 +1,50 @@
+---
+- name: Debug Nomad Service
+  hosts: all
+  become: true
+  tasks:
+    - name: Check Nomad service status
+      command: systemctl status nomad
+      register: nomad_status
+      ignore_errors: yes
+
+    - name: Display Nomad service status
+      debug:
+        var: nomad_status.stdout_lines
+
+    - name: Check Nomad logs
+      command: journalctl -u nomad --no-pager -n 50
+      register: nomad_logs
+      ignore_errors: yes
+
+    - name: Display Nomad logs
+      debug:
+        var: nomad_logs.stdout_lines
+
+    - name: Check if Nomad is listening on ports
+      command: ss -tulpn | grep nomad
+      register: nomad_ports
+      ignore_errors: yes
+
+    - name: Display Nomad port information
+      debug:
+        var: nomad_ports.stdout_lines
+
+    - name: Check firewall status
+      command: firewall-cmd --list-all
+      register: firewall_status
+      ignore_errors: yes
+
+    - name: Display firewall status
+      debug:
+        var: firewall_status.stdout_lines
+
+    - name: Check SELinux status
+      command: getenforce
+      register: selinux_status
+      ignore_errors: yes
+
+    - name: Display SELinux status
+      debug:
+        var: selinux_status.stdout
+

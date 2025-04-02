@@ -1,0 +1,35 @@
+---
+- name: Clean up all installations
+  hosts: all
+  become: true
+  tasks:
+    - name: Stop Nomad service
+      systemd:
+        name: nomad
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove Nomad data directory
+      file:
+        path: /var/lib/nomad
+        state: absent
+
+    - name: Remove Nomad binary
+      file:
+        path: /usr/local/bin/nomad
+        state: absent
+
+    - name: Remove Nomad configuration
+      file:
+        path: /etc/nomad.d
+        state: absent
+
+    - name: Remove Nomad service file
+      file:
+        path: /etc/systemd/system/nomad.service
+        state: absent
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+

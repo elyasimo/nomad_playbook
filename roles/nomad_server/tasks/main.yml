@@ -1,0 +1,161 @@
+---
+- name: Create Nomad user
+  user:
+    name: nomad
+    system: yes
+    shell: /sbin/nologin
+    home: /var/lib/nomad
+    create_home: no
+
+- name: Create Nomad directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: nomad
+    group: nomad
+    mode: '0755'
+  with_items:
+    - /etc/nomad.d
+    - /etc/nomad.d/config
+    - /etc/nomad.d/tls
+    - /opt/nomad
+    - /var/lib/nomad
+
+- name: Check if Nomad is already downloaded
+  stat:
+    path: /tmp/nomad.zip
+  register: nomad_zip
+
+- name: Download Nomad
+  get_url:
+    url: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_linux_amd64.zip"
+    dest: /tmp/nomad.zip
+    mode: '0644'
+  when: not nomad_zip.stat.exists
+  ignore_errors: true
+
+- name: Copy Nomad binary from first server if download fails
+  block:
+    - name: Check if Nomad binary exists on first server
+      stat:
+        path: /opt/nomad/nomad
+      register: nomad_binary
+      delegate_to: "{{ groups['nomad_servers'][0] }}"
+      run_once: true
+      when: inventory_hostname != groups['nomad_servers'][0]
+
+    - name: Copy Nomad binary from first server
+      copy:
+        src: /opt/nomad/nomad
+        dest: /opt/nomad/nomad
+        mode: '0755'
+        owner: nomad
+        group: nomad
+      when: inventory_hostname != groups['nomad_servers'][0] and nomad_binary.stat.exists is defined and nomad_binary.stat.exists
+  when: not nomad_zip.stat.exists
+  ignore_errors: true
+
+- name: Extract Nomad
+  unarchive:
+    src: /tmp/nomad.zip
+    dest: /opt/nomad
+    remote_src: yes
+    owner: nomad
+    group: nomad
+    mode: '0755'
+  ignore_errors: true
+
+- name: Create symlink to Nomad binary
+  file:
+    src: /opt/nomad/nomad
+    dest: /usr/local/bin/nomad
+    state: link
+
+- name: Configure Nomad server
+  template:
+    src: nomad-server.hcl.j2
+    dest: /etc/nomad.d/config/nomad.hcl
+    owner: nomad
+    group: nomad
+    mode: '0640'
+
+- name: Create Nomad systemd service
+  template:
+    src: nomad.service.j2
+    dest: /etc/systemd/system/nomad.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure SELinux allows Nomad to bind to its ports
+  shell: |
+    semanage port -a -t http_port_t -p tcp 4646 || semanage port -m -t http_port_t -p tcp 4646
+    semanage port -a -t http_port_t -p tcp 4647 || semanage port -m -t http_port_t -p tcp 4647
+    semanage port -a -t http_port_t -p tcp 4648 || semanage port -m -t http_port_t -p tcp 4648
+    semanage port -a -t http_port_t -p udp 4648 || semanage port -m -t http_port_t -p udp 4648
+  ignore_errors: yes
+
+- name: Open Nomad ports in firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - 4646/tcp
+    - 4647/tcp
+    - 4648/tcp
+    - 4648/udp
+  ignore_errors: true
+
+- name: Allow all traffic from Nomad clients
+  firewalld:
+    rich_rule: "rule family=ipv4 source address={{ hostvars[item]['ansible_host'] }}/32 accept"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items: "{{ groups['nomad_clients'] }}"
+  ignore_errors: true
+
+- name: Allow all traffic from other Nomad servers
+  firewalld:
+    rich_rule: "rule family=ipv4 source address={{ hostvars[item]['ansible_host'] }}/32 accept"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items: "{{ groups['nomad_servers'] }}"
+  ignore_errors: true
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Stop Nomad service if running
+  systemd:
+    name: nomad
+    state: stopped
+  ignore_errors: yes
+
+- name: Start and enable Nomad service
+  systemd:
+    name: nomad
+    state: started
+    enabled: yes
+
+- name: Wait for Nomad to start
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: 4646
+    delay: 10
+    timeout: 60
+  ignore_errors: true
+
+- name: Check Nomad service status
+  command: systemctl status nomad
+  register: nomad_status
+  ignore_errors: yes
+
+- name: Display Nomad service status
+  debug:
+    var: nomad_status.stdout_lines
+

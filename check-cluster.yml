@@ -1,0 +1,32 @@
+---
+- name: Check Nomad cluster status
+  hosts: nomad_servers[0]
+  become: true
+  tasks:
+    - name: Check Nomad server members
+      command: nomad server members
+      register: server_members
+      ignore_errors: true
+
+    - name: Display Nomad server members
+      debug:
+        var: server_members.stdout_lines
+
+    - name: Check Nomad node status
+      command: nomad node status
+      register: node_status
+      ignore_errors: true
+
+    - name: Display Nomad node status
+      debug:
+        var: node_status.stdout_lines
+
+    - name: Check Nomad server info
+      command: nomad server info
+      register: server_info
+      ignore_errors: true
+
+    - name: Display Nomad server info
+      debug:
+        var: server_info.stdout_lines
+

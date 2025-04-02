@@ -1,0 +1,22 @@
+[Unit]
+Description=Nomad Agent
+Documentation=https://www.nomadproject.io/
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+User=nomad
+Group=nomad
+ExecStart=/usr/local/bin/nomad agent -config=/etc/nomad.d/config
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+KillSignal=SIGTERM
+Restart=on-failure
+LimitNOFILE=65536
+LimitNPROC=infinity
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

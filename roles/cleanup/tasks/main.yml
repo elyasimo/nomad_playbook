@@ -1,0 +1,61 @@
+---
+- name: Stop Nomad service if exists
+  systemd:
+    name: nomad
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Stop Consul service if exists
+  systemd:
+    name: consul
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Stop Nginx service if exists
+  systemd:
+    name: nginx
+    state: stopped
+    enabled: false
+  when: inventory_hostname in groups['nginx']
+  ignore_errors: true
+
+- name: Remove Nomad directories
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /etc/nomad.d
+    - /opt/nomad
+    - /var/lib/nomad
+
+- name: Remove Consul directories
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /etc/consul.d
+    - /opt/consul
+    - /var/lib/consul
+
+- name: Remove Nomad and Consul binaries
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /usr/local/bin/nomad
+    - /usr/local/bin/consul
+
+- name: Remove Nomad and Consul systemd services
+  file:
+    path: "/etc/systemd/system/{{ item }}.service"
+    state: absent
+  with_items:
+    - nomad
+    - consul
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+

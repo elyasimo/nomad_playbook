@@ -1,0 +1,92 @@
+---
+- name: Configure Nomad client
+  template:
+    src: nomad-client.hcl.j2
+    dest: /etc/nomad.d/config/nomad.hcl
+    owner: nomad
+    group: nomad
+    mode: '0640'
+
+- name: Create host volume directories
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: nomad
+    group: nomad
+    mode: '0777'
+  with_items: "{{ host_volumes }}"
+
+- name: Install Docker
+  dnf:
+    name:
+      - docker
+    state: present
+  ignore_errors: yes
+
+- name: Create Docker group
+  group:
+    name: docker
+    state: present
+
+- name: Add nomad user to Docker group
+  user:
+    name: nomad
+    groups: docker
+    append: yes
+
+- name: Configure Docker daemon for insecure registries
+  copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "insecure-registries": ["localhost:5000", "10.25.5.3:5000", "10.25.5.4:5000", "10.25.5.5:5000"]
+      }
+    mode: '0644'
+  ignore_errors: yes
+
+- name: Start and enable Docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+  ignore_errors: yes
+
+- name: Ensure Docker socket has correct permissions
+  file:
+    path: /var/run/docker.sock
+    mode: '0666'
+  ignore_errors: yes
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Stop Nomad service if running
+  systemd:
+    name: nomad
+    state: stopped
+  ignore_errors: yes
+
+- name: Start and enable Nomad service
+  systemd:
+    name: nomad
+    state: started
+    enabled: yes
+
+- name: Wait for Nomad to start
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: 4646
+    delay: 10
+    timeout: 60
+  ignore_errors: true
+
+- name: Check Nomad service status
+  command: systemctl status nomad
+  register: nomad_status
+  ignore_errors: yes
+
+- name: Display Nomad service status
+  debug:
+    var: nomad_status.stdout_lines
+
