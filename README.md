@@ -33,29 +33,46 @@ The cluster consists of:
 
 First, set up your control node with Python virtual environment and Ansible:
 
-\`\`\`bash
-# Install Python venv package if not already installed
+```bash
+
+```
+
+#### Install Python venv package if not already installed
+
+```bash
 sudo dnf install -y python3-venv
+```
 
-# Create a virtual environment
+#### Create a virtual environment
+
+```bash
 python3 -m venv ~/ansible-venv
+```
 
-# Activate the virtual environment
+#### Activate the virtual environment
+
+```bash
 source ~/ansible-venv/bin/activate
+```
 
-# Upgrade pip
+#### Upgrade pip
+
+```bash
 pip install --upgrade pip
+```
 
-# Install Ansible and required packages
+#### Install Ansible and required packages
+```bash
 pip install ansible==2.9.27 netaddr jinja2 PyYAML
-\`\`\`
+```
+
 
 ### 2. Clone the Repository
 
-\`\`\`bash
+```bash
 git clone https://github.com/your-org/nomad-ansible.git
 cd nomad-ansible
-\`\`\`
+```
 
 ### 3. Configure Inventory
 
@@ -69,19 +86,27 @@ Review and modify the `group_vars/all.yml` file to customize your deployment. Th
 
 Make all shell scripts in the repository executable:
 
-\`\`\`bash
+```bash
+
+```
+
 # Make all shell scripts executable
+```bash
 find . -name "*.sh" -exec chmod +x {} \;
-\`\`\`
+```
 
 ### 6. Run the Installation Playbook
 
 Run the Ansible playbook to install and configure the cluster:
 
-\`\`\`bash
-# Run the playbook
+```bash
+
+```
+
+#### Run the playbook
+```bash
 ./run-playbook.sh
-\`\`\`
+```
 
 When prompted, enter the sudo password for the remote servers.
 
@@ -89,13 +114,20 @@ When prompted, enter the sudo password for the remote servers.
 
 After the playbook completes, verify that Nomad and Consul are properly installed and running:
 
-\`\`\`bash
-# Check Nomad cluster status
-./check-nomad.sh
+```bash
 
-# Check Consul cluster status
+```
+
+#### Check Nomad cluster status
+```bash
+./check-nomad.sh
+```
+
+#### Check Consul cluster status
+```bash
 ./check-consul.sh
-\`\`\`
+```
+
 
 You should see output showing all Nomad servers, Nomad clients, and Consul servers are healthy and connected.
 
@@ -103,20 +135,33 @@ You should see output showing all Nomad servers, Nomad clients, and Consul serve
 
 Once the infrastructure is verified, deploy the required Nomad jobs:
 
-\`\`\`bash
-# Deploy Docker Registry job
+```bash
+
+```
+
+#### Deploy Docker Registry job
+```bash
 nomad job run jobs/docker-registry.nomad
+```
 
-# Wait for the Docker Registry to be fully deployed
+#### Wait for the Docker Registry to be fully deployed
+```bash
 sleep 30
+```
 
-# Check Docker Registry job status
+#### Check Docker Registry job status
+```bash
 nomad job status docker-registry
+```
 
-# Deploy Elastic Agent job
+#### Deploy Elastic Agent job
+```bash
 nomad job run jobs/elastic-agent.nomad
+```
 
-# Check Elastic Agent job status
+#### Check Elastic Agent job status
+```bash
 nomad job status elastic-agent
-\`\`\`
+```
+
 
