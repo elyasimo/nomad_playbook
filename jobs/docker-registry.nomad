@@ -1,23 +1,16 @@
 job "docker-registry" {
   datacenters = ["dum-seclab"]
-  type        = "service"
+  type = "service"
 
   group "registry" {
-    count = 3  # Run on all 3 client nodes for high availability
-
-    # Ensure instances run on different hosts
-    constraint {
-      operator = "distinct_hosts"
-      value    = "true"
-    }
+    count = 3  # Starting with 1 instance for simplicity
 
     network {
       port "registry" {
-        static = 5000
+        static = 5000  # Using static port for simplicity
       }
     }
 
-    # Use the host volume for persistent storage
     volume "registry_data" {
       type      = "host"
       read_only = false
@@ -35,24 +28,14 @@ job "docker-registry" {
         ]
       }
 
-      volume_mount {
-        volume      = "registry_data"
-        destination = "/var/lib/registry"
-        read_only   = false
-      }
-
       template {
-        data = <<EOF
+        data = <<EOH
 version: 0.1
-log:
-  level: info
 storage:
   filesystem:
     rootdirectory: /var/lib/registry
-  delete:
-    enabled: true
 http:
-  addr: :5000
+  addr: 0.0.0.0:5000
   headers:
     X-Content-Type-Options: [nosniff]
 health:
@@ -60,26 +43,30 @@ health:
     enabled: true
     interval: 10s
     threshold: 3
-EOF
+EOH
         destination = "local/config.yml"
+      }
+
+      volume_mount {
+        volume      = "registry_data"
+        destination = "/var/lib/registry"
+        read_only   = false
       }
 
       resources {
         cpu    = 500
-        memory = 512
+        memory = 256
       }
 
-      service {
-        name = "docker-registry"
-        port = "registry"
-        check {
-          type     = "http"
-          path     = "/v2/"
-          interval = "10s"
-          timeout  = "2s"
-        }
-      }
+      # Removed the service block to avoid Consul dependency
     }
   }
-}
 
+  # Simplified update strategy
+  update {
+    max_parallel     = 1
+    min_healthy_time = "30s"
+    healthy_deadline = "5m"
+    auto_revert      = true
+  }
+}
