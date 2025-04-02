@@ -34,3 +34,5 @@ The cluster consists of:
 ```bash
 git clone https://github.com/your-org/nomad-ansible.git
 cd nomad-ansible
+chmod +x *.sh
+./run-playbook.sh
