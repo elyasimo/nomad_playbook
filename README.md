@@ -69,16 +69,40 @@ pip install ansible==2.9.27 netaddr jinja2 PyYAML
 git clone ssh://git@code.swisscom.com:2222/swisscom/managed-security-service/sp/orchestration/ansible-nomad-deployment.git
 cd ansible-nomad-deployment
 ```
+### 3. Set Up SSH Key-Based Access
+To allow Ansible to connect to all nodes without password prompts, set up SSH key-based authentication.
+Generate an SSH key pair (if not already created)
+```bash
+ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+```
+Press Enter to accept the default location (~/.ssh/id_rsa) and leave the passphrase empty (unless otherwise required).
 
-### 3. Configure Inventory
+Copy the public key to each target node
+Run the following command for each node listed in your inventory:
+```bash
+ssh-copy-id user@target-node
+```
+
+Replace:
+    technical_user with the name of your technical user (must have sudo rights)
+    target-node with the IP address or hostname of the remote server
+
+This setup allows Ansible to connect without requiring password prompts.
+
+Verify the connection
+You can verify SSH access works correctly using:
+```bash
+ssh technical_user@target-node
+```
+### 4. Configure Inventory
 
 Edit the `inventory/hosts.yml` file to match your environment. The file should define your Nomad servers, Nomad clients, and Nginx load balancer with their respective IP addresses.
 
-### 4. Configure Variables
+### 5. Configure Variables
 
 Review and modify the `group_vars/all.yml` file to customize your deployment. This file contains configuration for Nomad and Consul versions, datacenter name, encryption keys, and other important settings.
 
-### 5. Make All Shell Scripts Executable
+### 6. Make All Shell Scripts Executable
 
 Make all shell scripts in the repository executable:
 
@@ -87,7 +111,7 @@ Make all shell scripts in the repository executable:
 find . -name "*.sh" -exec chmod +x {} \;
 ```
 
-### 6. Run the Installation Playbook
+### 7. Run the Installation Playbook
 
 Run the Ansible playbook to install and configure the cluster:
 
@@ -98,7 +122,7 @@ Run the Ansible playbook to install and configure the cluster:
 
 When prompted, enter the sudo password for the remote servers.
 
-### 7. Verify the Installation
+### 8. Verify the Installation
 
 After the playbook completes, verify that Nomad and Consul are properly installed and running:
 
@@ -115,7 +139,7 @@ After the playbook completes, verify that Nomad and Consul are properly installe
 
 You should see output showing all Nomad servers, Nomad clients, and Consul servers are healthy and connected.
 
-### 8. Deploy Nomad Jobs
+### 9. Deploy Nomad Jobs
 
 Once the infrastructure is verified, deploy the required Nomad jobs:
 
