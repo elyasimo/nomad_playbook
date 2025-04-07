@@ -33,10 +33,6 @@ The cluster consists of:
 
 First, set up your control node with Python virtual environment and Ansible:
 
-```bash
-
-```
-
 #### Install Python venv package if not already installed
 
 ```bash
@@ -46,13 +42,13 @@ sudo dnf install -y python3-venv
 #### Create a virtual environment
 
 ```bash
-python3 -m venv ~/ansible-venv
+sudo python3 -m venv /opt/ansible-venv
 ```
 
 #### Activate the virtual environment
 
 ```bash
-source ~/ansible-venv/bin/activate
+source /opt/ansible-venv/bin/activate
 ```
 
 #### Upgrade pip
@@ -70,8 +66,8 @@ pip install ansible==2.9.27 netaddr jinja2 PyYAML
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/nomad-ansible.git
-cd nomad-ansible
+git clone ssh://git@code.swisscom.com:2222/swisscom/managed-security-service/sp/orchestration/ansible-nomad-deployment.git
+cd ansible-nomad-deployment
 ```
 
 ### 3. Configure Inventory
@@ -86,10 +82,6 @@ Review and modify the `group_vars/all.yml` file to customize your deployment. Th
 
 Make all shell scripts in the repository executable:
 
-```bash
-
-```
-
 # Make all shell scripts executable
 ```bash
 find . -name "*.sh" -exec chmod +x {} \;
@@ -98,10 +90,6 @@ find . -name "*.sh" -exec chmod +x {} \;
 ### 6. Run the Installation Playbook
 
 Run the Ansible playbook to install and configure the cluster:
-
-```bash
-
-```
 
 #### Run the playbook
 ```bash
@@ -113,10 +101,6 @@ When prompted, enter the sudo password for the remote servers.
 ### 7. Verify the Installation
 
 After the playbook completes, verify that Nomad and Consul are properly installed and running:
-
-```bash
-
-```
 
 #### Check Nomad cluster status
 ```bash
@@ -134,10 +118,6 @@ You should see output showing all Nomad servers, Nomad clients, and Consul serve
 ### 8. Deploy Nomad Jobs
 
 Once the infrastructure is verified, deploy the required Nomad jobs:
-
-```bash
-
-```
 
 #### Deploy Docker Registry job
 ```bash
