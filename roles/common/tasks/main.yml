@@ -5,6 +5,37 @@
   changed_when: false
   ignore_errors: true
 
+---
+# Update OS packages first
+- name: Update all packages
+  dnf:
+    name: "*"
+    state: latest
+    update_cache: yes
+    update_only: no
+    disable_gpg_check: no
+    # This will automatically accept GPG keys
+    install_weak_deps: yes
+  register: update_result
+  ignore_errors: true
+
+- name: Reboot if kernel was updated
+  reboot:
+    msg: "Reboot initiated by Ansible due to kernel update"
+    connect_timeout: 5
+    reboot_timeout: 300
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: uptime
+  when: update_result.changed and update_result.results | select('search', 'kernel') | list | length > 0
+  ignore_errors: true
+
+- name: Check if packages are already installed
+  shell: "rpm -q curl unzip jq net-tools firewalld policycoreutils-python-utils python3-firewall chrony || echo 'not-installed'"
+  register: packages_check
+  changed_when: false
+  ignore_errors: true
+  
 - name: Install required packages
   dnf:
     name:
