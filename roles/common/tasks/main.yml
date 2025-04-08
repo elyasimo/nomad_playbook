@@ -5,7 +5,6 @@
   changed_when: false
   ignore_errors: true
 
----
 # Update OS packages first
 - name: Update all packages
   dnf:
@@ -35,7 +34,7 @@
   register: packages_check
   changed_when: false
   ignore_errors: true
-  
+
 - name: Install required packages
   dnf:
     name:

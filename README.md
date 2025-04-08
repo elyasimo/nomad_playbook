@@ -128,7 +128,7 @@ After the playbook completes, verify that Nomad and Consul are properly installe
 
 #### Check Nomad cluster status
 ```bash
-./check-nomad.sh
+./check-cluster.sh
 ```
 
 #### Check Consul cluster status
