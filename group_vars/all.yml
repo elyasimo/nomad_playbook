@@ -5,6 +5,10 @@ consul_version: "1.16.2"
 datacenter: "dum-seclab"
 domain: "dum.seclab.ch"
 
+# OS Update settings
+perform_os_update: true
+reboot_on_kernel_update: true
+
 # Security
 enable_acls: false
 encrypt_gossip: true
