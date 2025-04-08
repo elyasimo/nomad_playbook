@@ -1,0 +1,68 @@
+---
+# Ansible playbook to update CentOS systems before Nomad installation
+# This playbook automatically handles GPG key acceptance
+
+- name: Update all CentOS systems
+  hosts: all  # Target all hosts in inventory, or replace with your specific host group
+  become: true  # Run as root
+  gather_facts: true  # Gather system facts to determine OS
+
+  tasks:
+    - name: Check if system is CentOS/RHEL
+      ansible.builtin.fail:
+        msg: "This playbook is designed for CentOS/RHEL systems"
+      when: ansible_distribution != 'CentOS' and ansible_distribution != 'RedHat' and ansible_distribution != 'Rocky' and ansible_distribution != 'AlmaLinux'
+      ignore_errors: yes  # Continue with other hosts if this one fails
+
+    - name: Configure dnf to automatically accept GPG keys
+      ansible.builtin.lineinfile:
+        path: /etc/dnf/dnf.conf
+        line: "{{ item }}"
+        create: yes
+      loop:
+        - "assumeyes=1"
+        - "gpgcheck=1"
+      when: ansible_distribution_major_version >= '8'
+
+    - name: Update all packages with dnf
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+      register: dnf_update
+      when: ansible_distribution_major_version >= '8'
+
+    - name: Configure yum to automatically accept GPG keys (for older systems)
+      ansible.builtin.lineinfile:
+        path: /etc/yum.conf
+        line: "{{ item }}"
+        create: yes
+      loop:
+        - "assumeyes=1"
+        - "gpgcheck=1"
+      when: ansible_distribution_major_version < '8'
+
+    - name: Update all packages with yum (for older systems)
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+        update_cache: yes
+        disable_gpg_check: yes
+      register: yum_update
+      when: ansible_distribution_major_version < '8'
+
+    - name: Clean dnf cache
+      ansible.builtin.dnf:
+        autoremove: yes
+        update_cache: yes
+      when: ansible_distribution_major_version >= '8'
+
+    - name: Clean yum cache (for older systems)
+      ansible.builtin.yum:
+        autoremove: yes
+        update_cache: yes
+      when: ansible_distribution_major_version < '8'
+
+    - name: Print update summary
+      ansible.builtin.debug:
+        msg: "System {{ inventory_hostname }} has been updated successfully"
